@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-from Pair import Pair, Days, Day
+from Objects.Pair import Pair, Days, Day
 
 
 class Parser:

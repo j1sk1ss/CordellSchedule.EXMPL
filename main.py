@@ -4,8 +4,8 @@ import telebot
 from apscheduler.schedulers.blocking import BlockingScheduler
 from telebot import types
 
-from ScheduleParser import Parser, PairType
-from User import Users, User
+from Scripts.ScheduleParser import Parser, PairType
+from Objects.User import Users, User
 
 print('Type bot token: ')
 bot = telebot.TeleBot('5511006797:AAHGTKMP7cULEQKIuTRCH9QPclBxCZv6tTE')
@@ -40,7 +40,7 @@ def attention():
         days = parser.parse()
         pair, duration = days.get_current_day().find_near_pair()
 
-        if duration.seconds // 3600 <= current_user.attention:
+        if duration.seconds / 3600 <= current_user.attention:
             send_message(f'Near next pair: {pair.name}, Time: {pair.time}, Audit: {pair.audit}', user.chat_id)
 
 
