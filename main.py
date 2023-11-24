@@ -8,7 +8,7 @@ from Scripts.ScheduleParser import Parser, PairType
 from Objects.User import Users, User
 
 print('Type bot token: ')
-bot = telebot.TeleBot('5511006797:AAHGTKMP7cULEQKIuTRCH9QPclBxCZv6tTE')
+bot = telebot.TeleBot(input())
 scheduler = BlockingScheduler(timezone="Europe/Berlin")
 
 users = Users([])
@@ -17,7 +17,7 @@ current_user = User(0)
 
 def send_daily_message():
     for user in users.users:
-        if not user.every_day_review:
+        if user.every_day_review is False:
             continue
 
         parser = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
@@ -40,7 +40,7 @@ def attention():
         days = parser.parse()
         pair, duration = days.get_current_day().find_near_pair()
 
-        if duration.seconds / 3600 <= current_user.attention:
+        if duration.seconds / 60 <= current_user.attention:
             send_message(f'Near next pair: {pair.name}, Time: {pair.time}, Audit: {pair.audit}', user.chat_id)
 
 
