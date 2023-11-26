@@ -1,6 +1,6 @@
 # CordellSchedule.EXMPL
 
-This telegram bot simply parses the information from the website where my university building is located and presents that information in a friendlier way.
+This telegram bot simply parses the information from the website where my university`s schedule and presents that information in a friendlier way.
 
 Also I'm adding some features:
 - Couple reminder
