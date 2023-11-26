@@ -1,5 +1,9 @@
 class User:
     def __init__(self, chat_id):
+        self.is_answer = False
+        self.pair = None
+
+        self.pairs_missed = {}
         self.chat_id = chat_id
 
         self.is_setting_attention = False

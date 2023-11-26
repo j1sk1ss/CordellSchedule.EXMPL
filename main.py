@@ -1,64 +1,86 @@
 from threading import Thread
-
-import telebot
 from apscheduler.schedulers.blocking import BlockingScheduler
-from telebot import types
-
+from telebot import TeleBot, types
 from Scripts.ScheduleParser import Parser, PairType
 from Objects.User import Users, User
-
 from prettytable import PrettyTable as prettyTable
 
+# Configuration Constants
+BOT_TOKEN = input('Type bot token: ')
+SCHEDULE_URL = "http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full"
 
-print('Type bot token: ')
-bot = telebot.TeleBot(input())
+# Initialize bot and scheduler
+bot = TeleBot(BOT_TOKEN)
 scheduler = BlockingScheduler(timezone="Europe/Berlin")
 
+# Initialize Users
 users = Users([])
 current_user = User(0)
 
 
 def send_daily_message():
     for user in users.users:
-        if user.every_day_review is False:
-            continue
+        schedule = get_schedule()
+        if not user.every_day_review:
+            return
 
-        parser = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
-                        PairType().get_all())
-        days = parser.parse()
-        tb = prettyTable()
-
-        tb.field_names = ["Pair", "Type", "Time", "Audit"]
-        day = days.get_current_day()
-        if day is None:
-            send_message('No study today', user.chat_id)
-            day = days.find_near_day()
-
-        for pair in day.pairs:
-            tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit)])
-
+        tb = generate_pretty_table(schedule, user)
         send_table(tb, user.chat_id)
+
+
+def get_schedule():
+    parser = Parser(SCHEDULE_URL, PairType().get_all())
+    return parser.parse()
+
+
+def generate_pretty_table(schedule, user):
+    tb = prettyTable()
+    tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
+
+    current_day = schedule.get_current_day()
+
+    if current_day is None:
+        send_message('No study today', user.chat_id)
+        current_day = schedule.find_near_day()[0]
+
+    for pair in current_day.pairs:
+        tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit),
+                    user.pairs_missed.get(pair.name, 0)])
+
+    return tb
 
 
 def attention():
     for user in users.users:
-        if user.is_attention is False:
+        if not user.is_attention:
             continue
 
-        parser = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
-                        PairType().get_all())
-        days = parser.parse()
-        pair, duration = days.get_current_day().find_near_pair()
+        schedule = get_schedule()
+        current_day = schedule.get_current_day()
+        if current_day is None:
+            continue
+
+        pair, duration = current_day.find_near_pair()
         if pair is None:
-            return None
+            continue
 
-        if duration.seconds // 60 <= current_user.attention:
-            send_message(f'Before pair attention {user.attention} min', user.chat_id)
+        if duration.seconds // 60 <= user.attention:
+            send_attention_message(user, pair)
 
-            tb = prettyTable()
-            tb.field_names = ["Pair", "Type", "Time", "Audit"]
-            tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit)])
-            send_table(tb, user.chat_id)
+
+def send_attention_message(user, pair):
+    send_message(f'Before pair attention {user.attention} min', user.chat_id)
+
+    tb = prettyTable()
+    tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
+
+    missed = user.pairs_missed.get(pair.name, 0)
+    tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
+
+    send_table(tb, user.chat_id)
+    send_buttons(f'Did u go to this pair?', ['Yes, i go', 'No, i don`t go'], user.chat_id)
+    user.is_answer = True
+    user.pair = pair
 
 
 scheduler.add_job(send_daily_message, trigger="cron", hour=23)
@@ -108,27 +130,51 @@ def answer(message):
 
     bot.delete_message(message.message.chat.id, message.message.message_id)
     if message.data == 'Setup end':
-        send_buttons('Choose operation', ['All pairs',
-                                          'Next pair'], message.message.chat.id)
-        return
-
-    if message.data == 'All pairs':
-        days = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
-                      PairType().get_all()).parse()
-        tb = prettyTable()
-
-        tb.field_names = ["Pair", "Type", "Time", "Audit"]
-        day = days.get_current_day()
-        if day is None:
-            send_message('No study today', message.message.chat.id)
-            day = days.find_near_day()
-
-        for pair in day.pairs:
-            tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit)])
-
-        send_table(tb, message.message.chat.id)
         send_buttons('Choose operation', ['All pairs', 'Next pair'], message.message.chat.id)
         return
+
+    #######################
+    # All pairs showing
+
+    if message.data == 'All pairs':
+        send_buttons('Choose pair type', ['All any', 'All lection', 'All laboratory', 'All practice'],
+                     message.message.chat.id)
+        return
+
+    if message.data in ['All any', 'All lection', 'All laboratory', 'All practice']:
+        pair_type = {
+            'All any': PairType().get_all,
+            'All lection': PairType().get_lections,
+            'All laboratory': PairType().get_labs,
+            'All practice': PairType().get_practice
+        }.get(message.data)()
+
+        days = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
+                      pair_type).parse()
+
+        day = days.get_current_day()
+        if day is None:
+            day = days.find_near_day()[0]
+
+        day_index = days.find_day_index(day.date)
+        text = f'Current [{day.date}]:\n'
+        tb = prettyTable()
+        tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
+
+        for i in range(day_index, min(day_index + 6, len(days.days))):
+            for pair in days.days[i].pairs:
+                tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit),
+                            current_user.pairs_missed.get(pair.name, 0)])
+
+            text += '{}\n```\n{}```\n'.format(days.days[i].date, tb.get_string())
+            tb.clear_rows()
+
+        bot.send_message(message.message.chat.id, text, parse_mode='Markdown')
+        send_buttons('Choose operation', ['All pairs', 'Next pair'], message.message.chat.id)
+        return
+
+    # All pairs showing
+    #######################
 
     ###################
     # Next pair showing
@@ -138,20 +184,22 @@ def answer(message):
         return
 
     if message.data in ['Any', 'Lection', 'Laboratory', 'Practice']:
-        pair_type = PairType().get_practice()
-        if message.data == 'Any':
-            pair_type = PairType().get_all()
-        elif message.data == 'Lection':
-            pair_type = PairType().get_lections()
-        elif message.data == 'Laboratory':
-            pair_type = PairType().get_labs()
+        pair_type = {
+            'Any': PairType().get_all,
+            'Lection': PairType().get_lections,
+            'Laboratory': PairType().get_labs,
+            'Practice': PairType().get_practice
+        }.get(message.data)()
 
-        days = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full", pair_type).parse()
+        days = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
+                      pair_type).parse()
         pair = days.get_current_day().get_next_pair()
 
         tb = prettyTable()
-        tb.field_names = ["Pair", "Type", "Time", "Audit"]
-        tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit)])
+        tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
+        missed = current_user.pairs_missed.get(pair.name, 0)
+
+        tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
 
         send_table(tb, message.message.chat.id)
         send_buttons('Choose operation', ['All pairs', 'Next pair'], message.message.chat.id)
@@ -159,6 +207,15 @@ def answer(message):
 
     # Next pair showing
     ###################
+
+    if message.data in ['Yes, i go', 'No, i don`t go'] and current_user.is_answer:
+        if message.data == 'Yes, i go':
+            current_user.pairs_missed[
+                current_user.pair.name] = 0 if current_user.pair.name not in current_user.pairs_missed else \
+                current_user.pairs_missed[current_user.pair.name] - 1
+        else:
+            current_user.pairs_missed[current_user.pair.name] = current_user.pairs_missed.get(current_user.pair.name,
+                                                                                              0) + 1
 
     if message.data == 'Start setup':
         send_buttons('Select setting', ['Attention time', 'Every day review'], message.message.chat.id)

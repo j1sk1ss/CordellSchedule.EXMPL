@@ -63,8 +63,7 @@ class Days:
         self.days = days
 
     def get_current_day(self):
-        current_time = datetime.now().strftime("%d/%m/%Y")
-        return self.find_day(f'{current_time}')
+        return self.find_day(datetime.now().date())
 
     def find_near_day(self):
         current_time = (datetime.now() + timedelta(hours=TIME_OFFSET)).time()
@@ -72,26 +71,26 @@ class Days:
         min_time = timedelta.max
         nearest = self.days[0]
 
-        for pair in self.days:
-            day_datetime = datetime.combine(datetime.today(), pair.time)
-            time_difference = datetime.combine(datetime.today(), current_time) - day_datetime
+        for day in self.days:
+            day_datetime = datetime.combine(day.date, current_time)
+            time_difference = datetime.now() - day_datetime
 
             if min_time > abs(time_difference):
                 min_time = abs(time_difference)
-                nearest = pair
+                nearest = day
 
         return nearest, min_time
 
     def find_day(self, date):
         for day in self.days:
-            if day.date == datetime.strptime(date, "%d/%m/%Y").date():
+            if day.date == date:
                 return day
 
-        return None
+        return self.find_near_day()[0]
 
     def find_day_index(self, date):
         for day in range(len(self.days)):
-            if self.days[day].date == datetime.strptime(date, "%d/%m/%Y").date():
+            if self.days[day].date == date:
                 return day
 
         return 0
