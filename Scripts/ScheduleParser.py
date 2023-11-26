@@ -10,21 +10,14 @@ class Parser:
         self.pairs = pairs
 
     def parse(self):
-        answer = requests.get(self.link)
-        soup = BeautifulSoup(answer.text, "html.parser")
-
         dates, auditors, pairs, pair_types, pairs_time, professors = [], [], [], [], [], []
 
-        for day in soup.findAll('tr'):
+        for day in BeautifulSoup(requests.get(self.link).text, "html.parser").findAll('tr'):
             current_pairs = day.findAll('td', class_=self.pairs)
             date = day.findAll('td', class_=None)
 
             if date is not None and current_pairs is not None:
-                day_auditors = []
-                day_pairs = []
-                day_types = []
-                day_prof = []
-                day_pair_times = []
+                day_auditors, day_pairs, day_types, day_prof, day_pair_times = [], [], [], [], []
                 for pair in current_pairs:
                     pair_data = pair.findAll('a')
 

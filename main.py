@@ -149,9 +149,7 @@ def answer(message):
             'All practice': PairType().get_practice
         }.get(message.data)()
 
-        days = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
-                      pair_type).parse()
-
+        days = Parser(SCHEDULE_URL, pair_type).parse()
         day = days.get_current_day()
         if day is None:
             day = days.find_near_day()[0]
@@ -191,8 +189,7 @@ def answer(message):
             'Practice': PairType().get_practice
         }.get(message.data)()
 
-        days = Parser("http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13889&mode=full",
-                      pair_type).parse()
+        days = Parser(SCHEDULE_URL, pair_type).parse()
         pair = days.get_current_day().get_next_pair()
 
         tb = prettyTable()
