@@ -87,7 +87,7 @@ def send_attention_message(user, pair):
 
 
 scheduler.add_job(send_daily_message, trigger="cron", hour=23)
-scheduler.add_job(attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1', timezone='America/Chicago')
+scheduler.add_job(attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/5', timezone='America/Chicago')
 
 
 def schedule_checker():
