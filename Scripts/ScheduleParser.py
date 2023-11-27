@@ -18,6 +18,10 @@ class Parser:
 
             if date is not None and current_pairs is not None:
                 day_auditors, day_pairs, day_types, day_prof, day_pair_times = [], [], [], [], []
+
+                ######################
+                # Default pairs
+
                 for pair in current_pairs:
                     pair_data = pair.findAll('a')
 
@@ -33,6 +37,32 @@ class Parser:
                     day_auditors.append(temp)
                     day_pairs.append(temp_pair)
                     day_prof.append(temp_prof)
+
+                # Default pair
+                ######################
+
+                ######################
+                # PE
+
+                for cell in day.findAll('td', class_="asd"):
+                    for pair in cell.find('table').find('tr').findAll('td'):
+                        pair_data = pair.findAll('a')
+
+                        temp_pair = pair.find('span', class_='dis').text
+                        temp = pair_data[0].find('span', class_='aud').text
+                        temp_prof = pair_data[1].find('span', class_='p').text
+                        if temp == '' or temp is None:
+                            continue
+
+                        day_pair_times.append(PairType().times[int(pair['pare_id']) - 1])
+                        day_types.append(PairType().types[list(pair['class'])[0]])
+
+                        day_auditors.append(temp)
+                        day_pairs.append(temp_pair)
+                        day_prof.append(temp_prof)
+
+                # PE
+                ######################
 
                 if len(day_auditors) > 0:
                     pairs_time.append(day_pair_times)

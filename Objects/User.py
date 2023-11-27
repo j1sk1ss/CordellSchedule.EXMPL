@@ -1,3 +1,6 @@
+import pickle
+
+
 class User:
     def __init__(self, chat_id):
         self.is_answer = False
@@ -27,3 +30,19 @@ class Users:
 
     def add_user(self, user):
         self.users.append(user)
+
+    @staticmethod
+    def load_object():
+        try:
+            with open("data.pickle", "rb") as f:
+                return pickle.load(f)
+        except Exception as ex:
+            print("Error during unpickling object (Possibly unsupported):", ex)
+            return Users([])
+
+    def save_object(self):
+        try:
+            with open("data.pickle", "wb") as f:
+                pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as ex:
+            print("Error during pickling object (Possibly unsupported):", ex)

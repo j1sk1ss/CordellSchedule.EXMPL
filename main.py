@@ -1,3 +1,4 @@
+from datetime import datetime
 from threading import Thread
 from apscheduler.schedulers.blocking import BlockingScheduler
 from telebot import TeleBot, types
@@ -14,11 +15,12 @@ bot = TeleBot(BOT_TOKEN)
 scheduler = BlockingScheduler(timezone="Europe/Berlin")
 
 # Initialize Users
-users = Users([])
+users = Users.load_object()
 current_user = User(0)
 
 
 def send_daily_message():
+    users.save_object()
     for user in users.users:
         schedule = get_schedule()
         if not user.every_day_review:
@@ -44,15 +46,16 @@ def generate_pretty_table(schedule, user):
         current_day = schedule.find_near_day()[0]
 
     for pair in current_day.pairs:
-        tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit),
+        tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit),
                     user.pairs_missed.get(pair.name, 0)])
 
     return tb
 
 
 def attention():
+    print('Attention!')
     for user in users.users:
-        if not user.is_attention:
+        if user.is_attention is False:
             continue
 
         schedule = get_schedule()
@@ -64,7 +67,7 @@ def attention():
         if pair is None:
             continue
 
-        if duration.seconds // 60 <= user.attention:
+        if duration.seconds // 60 == user.attention:
             send_attention_message(user, pair)
 
 
@@ -84,7 +87,7 @@ def send_attention_message(user, pair):
 
 
 scheduler.add_job(send_daily_message, trigger="cron", hour=23)
-scheduler.add_job(attention, 'cron', day_of_week='mon-fri', hour='12-16', minute='5-59/1', timezone='America/Chicago')
+scheduler.add_job(attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1', timezone='America/Chicago')
 
 
 def schedule_checker():
@@ -97,12 +100,14 @@ Thread(target=schedule_checker).start()
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    send_message(datetime.now(), message.chat.id)
     send_buttons('Start setup', ['Start setup', 'Setup end'], message.chat.id)
     user = User(message.chat.id)
     if users.get_user(user.chat_id) is not None:
         return None
 
     users.add_user(user)
+    users.save_object()
 
 
 @bot.message_handler()
