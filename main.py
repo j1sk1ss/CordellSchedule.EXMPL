@@ -53,7 +53,6 @@ def generate_pretty_table(schedule, user):
 
 
 def attention():
-    print('Attention!')
     for user in users.users:
         if user.is_attention is False:
             continue
@@ -72,7 +71,8 @@ def attention():
 
 
 def send_attention_message(user, pair):
-    send_message(f'Before pair attention {user.attention} min', user.chat_id)
+    send_message(f'Before [{days.get_current_day().get_next_pair().name[:10]}] '
+                 f'attention {user.attention} min', user.chat_id)
 
     tb = prettyTable()
     tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
@@ -81,13 +81,13 @@ def send_attention_message(user, pair):
     tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
 
     send_table(tb, user.chat_id)
-    send_buttons(f'Did u go to this pair?', ['Yes, i go', 'No, i don`t go'], user.chat_id)
+    send_buttons(f'Did you go to this pair?', ['Yes, i go', 'No, i don`t go'], user.chat_id)
     user.is_answer = True
     user.pair = pair
 
 
 scheduler.add_job(send_daily_message, trigger="cron", hour=23)
-scheduler.add_job(attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/5', timezone='America/Chicago')
+scheduler.add_job(attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1', timezone='America/Chicago')
 
 
 def schedule_checker():
@@ -100,7 +100,6 @@ Thread(target=schedule_checker).start()
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    send_message(datetime.now(), message.chat.id)
     send_buttons('Start setup', ['Start setup', 'Setup end'], message.chat.id)
     user = User(message.chat.id)
     if users.get_user(user.chat_id) is not None:
