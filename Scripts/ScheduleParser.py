@@ -92,17 +92,19 @@ class PairType:
         self.practice = ['pr coming', 'pr passed']
         self.laboratory = ['lb coming', 'lb passed']
         self.lection = ['l coming', 'l passed']
+        self.exam = ['ex coming', 'ex passed']
 
         self.types = {
             'l': 'Lc.',
             'lb': 'Lb.',
-            'pr': 'Pr.'
+            'pr': 'Pr.',
+            'ex': 'Ex.'
         }
 
         self.times = ['8:00', '9:40', '11:20', '13:20', '15:00', '16:40', '18:20', '20:00']
 
     def get_all(self):
-        return [*self.practice, *self.laboratory, *self.lection]
+        return [*self.practice, *self.laboratory, *self.lection, *self.exam]
 
     def get_labs(self):
         return [*self.laboratory]
@@ -112,3 +114,6 @@ class PairType:
 
     def get_lections(self):
         return [*self.lection]
+
+    def get_exams(self):
+        return [*self.exam]
