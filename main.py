@@ -72,6 +72,10 @@ def send_pre_pair_attention():
             continue
 
         if duration.seconds // 60 == user.attention:
+            if user.is_answer:
+                user.pairs_missed[user.pair.name] = user.pairs_missed.get(user.pair.name, 0) + 1
+                user.is_answer = False
+
             send_message(f'Before pair attention {user.attention} min', user.chat_id)
 
             tb = prettyTable()
