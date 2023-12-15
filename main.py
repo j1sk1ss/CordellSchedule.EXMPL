@@ -138,7 +138,7 @@ def get_message(message):
         current_user.attention = int(message.text)
         current_user.is_attention = current_user.attention != 0
         current_user.is_setting_attention = False
-        send_buttons('Select setting', ['Attention time', 'Every day review', 'Setup end'], message.message.chat.id)
+        send_buttons('Select setting', ['Attention time', 'Every day review', 'Setup end'], message.chat.id)
         return
 
 
