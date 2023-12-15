@@ -159,16 +159,17 @@ def answer(message):
     # All pairs showing
 
     if message.data == 'All pairs':
-        send_buttons('Choose pair type', ['All any', 'All lection', 'All laboratory', 'All practice'],
+        send_buttons('Choose pair type', ['All any', 'All lection', 'All laboratory', 'All practice', 'All exams'],
                      message.message.chat.id)
         return
 
-    if message.data in ['All any', 'All lection', 'All laboratory', 'All practice']:
+    if message.data in ['All any', 'All lection', 'All laboratory', 'All practice', 'All exams']:
         pair_type = {
             'All any': PairType().get_all,
             'All lection': PairType().get_lections,
             'All laboratory': PairType().get_labs,
-            'All practice': PairType().get_practice
+            'All practice': PairType().get_practice,
+            'All exams': PairType().get_exams
         }.get(message.data)()
 
         days = Parser(SCHEDULE_URL, pair_type).parse()
@@ -200,15 +201,16 @@ def answer(message):
     # Next pair showing
 
     if message.data == 'Next pair':
-        send_buttons('Choose pair type', ['Any', 'Lection', 'Laboratory', 'Practice'], message.message.chat.id)
+        send_buttons('Choose pair type', ['Any', 'Lection', 'Laboratory', 'Practice', 'Exam'], message.message.chat.id)
         return
 
-    if message.data in ['Any', 'Lection', 'Laboratory', 'Practice']:
+    if message.data in ['Any', 'Lection', 'Laboratory', 'Practice', 'Exam']:
         pair_type = {
             'Any': PairType().get_all,
             'Lection': PairType().get_lections,
             'Laboratory': PairType().get_labs,
-            'Practice': PairType().get_practice
+            'Practice': PairType().get_practice,
+            'Exam': PairType().get_exams
         }.get(message.data)()
 
         days = Parser(SCHEDULE_URL, pair_type).parse()
