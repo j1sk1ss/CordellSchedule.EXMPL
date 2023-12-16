@@ -112,7 +112,7 @@ def get_schedule():
 # Task of attentions part
 
 scheduler.add_job(send_daily_message, trigger="cron", hour=1)
-scheduler.add_job(missed_calculation, trigger="cron", hour=23)
+scheduler.add_job(missed_calculation, trigger="cron", hour=21)
 scheduler.add_job(send_pre_pair_attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1',
                   timezone='America/Chicago')
 
@@ -145,6 +145,10 @@ def get_message(message):
     global current_user
     current_user = users.get_user(message.chat.id)
     if current_user is None:
+        return
+
+    if message.text == 'reload missed':
+        missed_calculation()
         return
 
     bot.delete_message(message.chat.id, message.message_id)
