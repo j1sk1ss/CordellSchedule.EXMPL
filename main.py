@@ -1,9 +1,12 @@
 #######################
 #   IMPORT SECTION
 
+from datetime import datetime
 from threading import Thread
 from apscheduler.schedulers.blocking import BlockingScheduler
 from telebot import TeleBot, types
+
+from Scripts.MissedParser import MissedParser
 from Scripts.ScheduleParser import Parser, PairType
 from Objects.User import Users, User
 from prettytable import PrettyTable as prettyTable
@@ -17,11 +20,26 @@ SCHEDULE_URL = "http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13
 
 # Initialize bot and scheduler
 bot = TeleBot(BOT_TOKEN)
-scheduler = BlockingScheduler(timezone="Europe/Berlin")
+scheduler = BlockingScheduler(timezone="Europe/Moscow")
 
 # Initialize Users
 users = Users.load_object()
 current_user = User(0)
+
+
+# Daily calculation of missed pairs
+def missed_calculation():
+    for user in users.users:
+        schedule = get_schedule()
+        current_day = schedule.get_current_day()
+        if current_day is None:
+            return None
+
+        for pair in current_day.pairs:
+            if MissedParser().is_missed(user, pair):
+                user.pairs_missed[pair.name + pair.type] = user.pairs_missed.get(pair.name + pair.type, 0) + 1
+
+    return None
 
 
 # Daily message contains data of all pair in this day
@@ -46,7 +64,12 @@ def send_daily_message():
 
         for pair in current_day.pairs:
             tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit),
-                        user.pairs_missed.get(pair.name, 0)])
+                        user.pairs_missed.get(pair.name + pair.type, 0)])
+
+            # Generate list of attention pairs
+            user.attention_pairs = []
+            if user.is_attention:
+                user.attention_pairs.append(pair)
 
         send_table(tb, user.chat_id)
 
@@ -59,35 +82,24 @@ def send_daily_message():
 # With choose type of message where user choose
 def send_pre_pair_attention():
     for user in users.users:
-        if user.is_attention is False:
+        if user.is_attention is False or len(user.attention_pairs) == 0:
             continue
 
-        schedule = get_schedule()
-        current_day = schedule.get_current_day()
-        if current_day is None:
-            continue
-
-        pair, duration = current_day.find_near_pair()
-        if pair is None:
-            continue
+        pair = user.attention_pairs[0]
+        duration = abs(datetime.combine(datetime.today(), datetime.now().time()) -
+                       datetime.combine(datetime.today(), pair.time))
 
         if duration.seconds // 60 == user.attention:
-            if user.is_answer:
-                user.pairs_missed[user.pair.name] = user.pairs_missed.get(user.pair.name, 0) + 1
-                user.is_answer = False
-
             send_message(f'Before pair attention {user.attention} min', user.chat_id)
 
             tb = prettyTable()
             tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
 
-            missed = user.pairs_missed.get(pair.name, 0)
-            tb.add_row([str(pair.name), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
+            missed = user.pairs_missed.get(pair.name + pair.type, 0)
+            tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
 
             send_table(tb, user.chat_id)
-            send_buttons(f'Did u go to this pair?', ['Yes, i go', 'No, i don`t go'], user.chat_id)
-            user.is_answer = True
-            user.pair = pair
+            del user.attention_pairs[0]
 
 
 # Get schedule of all pairs
@@ -99,7 +111,8 @@ def get_schedule():
 ############################
 # Task of attentions part
 
-scheduler.add_job(send_daily_message, trigger="cron", hour=23)
+scheduler.add_job(send_daily_message, trigger="cron", hour=1)
+scheduler.add_job(missed_calculation, trigger="cron", hour=23)
 scheduler.add_job(send_pre_pair_attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1',
                   timezone='America/Chicago')
 
@@ -110,6 +123,7 @@ def schedule_checker():
 
 
 Thread(target=schedule_checker).start()
+
 
 # Task of attentions part
 ############################
@@ -138,7 +152,17 @@ def get_message(message):
         current_user.attention = int(message.text)
         current_user.is_attention = current_user.attention != 0
         current_user.is_setting_attention = False
-        send_buttons('Select setting', ['Attention time', 'Every day review', 'Setup end'], message.chat.id)
+        send_buttons('Select setting', ['Attention time', 'Every day review', 'Login and Pass', 'Setup end'],
+                     message.chat.id)
+        return
+
+    if current_user.is_setting_login_and_pass:
+        current_user.login = message.text.split(' ')[0]
+        current_user.password = message.text.split(' ')[1]
+
+        current_user.is_setting_login_and_pass = False
+        send_buttons('Select setting', ['Attention time', 'Every day review', 'Login and Pass', 'Setup end'],
+                     message.chat.id)
         return
 
 
@@ -185,7 +209,7 @@ def answer(message):
         for i in range(day_index, min(day_index + 6, len(days.days))):
             for pair in days.days[i].pairs:
                 tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit),
-                            current_user.pairs_missed.get(pair.name, 0)])
+                            current_user.pairs_missed.get(pair.name + pair.type, 0)])
 
             text += '{}\n```\n{}```\n'.format(days.days[i].date, tb.get_string())
             tb.clear_rows()
@@ -218,7 +242,7 @@ def answer(message):
 
         tb = prettyTable()
         tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
-        missed = current_user.pairs_missed.get(pair.name, 0)
+        missed = current_user.pairs_missed.get(pair.name + pair.type, 0)
 
         tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
 
@@ -229,17 +253,9 @@ def answer(message):
     # Next pair showing
     ###################
 
-    if message.data in ['Yes, i go', 'No, i don`t go'] and current_user.is_answer:
-        if message.data == 'Yes, i go':
-            current_user.pairs_missed[
-                current_user.pair.name] = 0 if current_user.pair.name not in current_user.pairs_missed else \
-                current_user.pairs_missed[current_user.pair.name] - 1
-        else:
-            current_user.pairs_missed[current_user.pair.name] = current_user.pairs_missed.get(current_user.pair.name,
-                                                                                              0) + 1
-
     if message.data == 'Start setup':
-        send_buttons('Select setting', ['Attention time', 'Every day review', 'Setup end'], message.message.chat.id)
+        send_buttons('Select setting', ['Attention time', 'Every day review', 'Login and Pass', 'Setup end'],
+                     message.message.chat.id)
         return
 
     if message.data == 'Attention time':
@@ -250,6 +266,11 @@ def answer(message):
     if message.data == 'Every day review':
         send_buttons('Send all day pair in 2:00:00 every day?', ['Yes', 'No'], message.message.chat.id)
         current_user.is_setting_review = True
+        return
+
+    if message.data == 'Login and Pass':
+        send_message('Write login and pass with space delimiter', message.message.chat.id)
+        current_user.is_setting_login_and_pass = True
         return
 
     if current_user.is_setting_review:

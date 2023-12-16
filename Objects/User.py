@@ -3,18 +3,21 @@ import pickle
 
 class User:
     def __init__(self, chat_id):
-        self.is_answer = False
-        self.pair = None
+        self.login = ''
+        self.password = ''
 
         self.pairs_missed = {}
         self.chat_id = chat_id
 
         self.is_setting_attention = False
         self.is_setting_review = False
+        self.is_setting_login_and_pass = False
 
-        self.attention = 0              # Time before pair
+        self.attention = 0
         self.is_attention = False
-        self.every_day_review = False   # Every day send all todays pairs
+        self.attention_pairs = []
+
+        self.every_day_review = False
 
 
 class Users:
