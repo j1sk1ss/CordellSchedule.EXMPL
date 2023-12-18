@@ -5,7 +5,7 @@ from datetime import datetime
 from threading import Thread
 from apscheduler.schedulers.blocking import BlockingScheduler
 from telebot import TeleBot, types
-
+# 6861974814:AAFVF3bSv9NxA3QgwJKltHTHctRMY3nWjG8
 from Scripts.MissedParser import MissedParser
 from Scripts.ScheduleParser import Parser, PairType
 from Objects.User import Users, User
@@ -81,6 +81,7 @@ def send_daily_message():
 #
 # With choose type of message where user choose
 def send_pre_pair_attention():
+    print('Hello')
     for user in users.users:
         if user.is_attention is False or len(user.attention_pairs) == 0:
             continue
@@ -89,17 +90,17 @@ def send_pre_pair_attention():
         duration = abs(datetime.combine(datetime.today(), datetime.now().time()) -
                        datetime.combine(datetime.today(), pair.time))
 
-        if duration.seconds // 60 == user.attention:
-            send_message(f'Before pair attention {user.attention} min', user.chat_id)
+        # if duration.seconds // 60 == user.attention:
+        send_message(f'Before pair attention {user.attention} min', user.chat_id)
 
-            tb = prettyTable()
-            tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
+        tb = prettyTable()
+        tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
 
-            missed = user.pairs_missed.get(pair.name + pair.type, 0)
-            tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
+        missed = user.pairs_missed.get(pair.name + pair.type, 0)
+        tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit), missed])
 
-            send_table(tb, user.chat_id)
-            del user.attention_pairs[0]
+        send_table(tb, user.chat_id)
+        del user.attention_pairs[0]
 
 
 # Get schedule of all pairs
@@ -148,7 +149,8 @@ def get_message(message):
         return
 
     if message.text == 'reload missed':
-        missed_calculation()
+        # missed_calculation()
+        send_daily_message()
         return
 
     bot.delete_message(message.chat.id, message.message_id)
