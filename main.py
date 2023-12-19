@@ -50,36 +50,30 @@ def send_daily_message():
     users.save_object()
     for user in users.users:
         schedule = get_schedule()
-        if not user.every_day_review:
-            return
-
         tb = prettyTable()
         tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
 
         current_day = schedule.get_current_day()
-
         if current_day is None:
-            send_message('No study today', user.chat_id)
-            current_day = schedule.find_near_day()[0]
+            return
 
+        # Generate list of attention pairs
+        user.attention_pairs = []
         for pair in current_day.pairs:
             tb.add_row([str(pair.name[:10]), str(pair.type), str(pair.time)[:5], str(pair.audit),
                         user.pairs_missed.get(pair.name + pair.type, 0)])
 
-            # Generate list of attention pairs
-            user.attention_pairs = []
             if user.is_attention:
                 user.attention_pairs.append(pair)
 
-        send_table(tb, user.chat_id)
+        if user.every_day_review:
+            send_table(tb, user.chat_id)
 
 
 # Pre pair attention sends to user before pair (For ex. 5 minutes before pair start)
 #  ____________________________
 # | PAIR | AUDIT | TYPE | TIME |
-# | I GO   |          | I MISS |
 #
-# With choose type of message where user choose
 def send_pre_pair_attention():
     for user in users.users:
         if user.is_attention is False or len(user.attention_pairs) == 0:
@@ -90,7 +84,7 @@ def send_pre_pair_attention():
                        datetime.combine(datetime.today(), pair.time))
 
         if duration.seconds // 60 == user.attention:
-            send_message(f'Before pair attention {user.attention} min', user.chat_id)
+            bot.send_message(user.chat_id, text=f'Before pair attention {user.attention} min')
 
             tb = prettyTable()
             tb.field_names = ["Pair", "Type", "Time", "Audit", "Missed"]
@@ -111,7 +105,7 @@ def get_schedule():
 ############################
 # Task of attentions part
 
-scheduler.add_job(send_daily_message, trigger="cron", hour=1)
+scheduler.add_job(send_daily_message, trigger="cron", hour=0)
 scheduler.add_job(missed_calculation, trigger="cron", hour=21)
 scheduler.add_job(send_pre_pair_attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1',
                   timezone='America/Chicago')
@@ -123,7 +117,6 @@ def schedule_checker():
 
 
 Thread(target=schedule_checker).start()
-
 
 # Task of attentions part
 ############################
@@ -267,7 +260,7 @@ def answer(message):
         return
 
     if message.data == 'Attention time':
-        send_message('Write count of minutes (0 - attentions turn off)', message.message.chat.id)
+        bot.send_message(message.message.chat.id, text='Write count of minutes (0 - attentions turn off)')
         current_user.is_setting_attention = True
         return
 
@@ -277,19 +270,16 @@ def answer(message):
         return
 
     if message.data == 'Login and Pass':
-        send_message('Write login and pass with space delimiter', message.message.chat.id)
+        bot.send_message(message.message.chat.id, text='Write login and pass with space delimiter')
         current_user.is_setting_login_and_pass = True
         return
 
     if current_user.is_setting_review:
         current_user.every_day_review = message.data == 'Yes'
         current_user.is_setting_review = False
-        send_buttons('Start setup', ['Start setup', 'Setup end'], message.message.chat.id)
+        send_buttons('Select setting', ['Attention time', 'Every day review', 'Login and Pass', 'Setup end'],
+                     message.message.chat.id)
         return
-
-
-def send_message(text, chat_id):
-    bot.send_message(chat_id, text=text)
 
 
 def send_table(table, chat_id):
