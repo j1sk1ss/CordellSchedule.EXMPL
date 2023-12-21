@@ -20,7 +20,6 @@ SCHEDULE_URL = "http://www.osu.ru/pages/schedule/?who=1&what=1&filial=1&group=13
 
 # Initialize bot and scheduler
 bot = TeleBot(BOT_TOKEN)
-scheduler = BlockingScheduler(timezone="Europe/Moscow")
 
 # Initialize Users
 users = Users.load_object()
@@ -105,18 +104,23 @@ def get_schedule():
 ############################
 # Task of attentions part
 
+scheduler = BlockingScheduler(timezone="Europe/Moscow")
+
 scheduler.add_job(send_daily_message, trigger="cron", hour=0)
 scheduler.add_job(missed_calculation, trigger="cron", hour=21)
 scheduler.add_job(send_pre_pair_attention, 'cron', day_of_week='mon-fri', hour='0-23', minute='5-59/1',
                   timezone='America/Chicago')
 
+# Start the scheduler in a separate thread
+scheduler_thread = Thread(target=scheduler.start)
+scheduler_thread.start()
 
-def schedule_checker():
+# Keep the main thread alive
+try:
     while True:
-        scheduler.start()
-
-
-Thread(target=schedule_checker).start()
+        pass
+except (KeyboardInterrupt, SystemExit):
+    scheduler.shutdown()
 
 # Task of attentions part
 ############################
