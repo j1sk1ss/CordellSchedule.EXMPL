@@ -2,7 +2,6 @@
 #   IMPORT SECTION
 
 from datetime import datetime
-from threading import Thread
 from apscheduler.schedulers.blocking import BlockingScheduler
 from telebot import TeleBot, types
 
@@ -115,8 +114,9 @@ def schedule_tasks():
 
 
 # Start the scheduler in a separate thread
-scheduler_thread = Thread(target=schedule_tasks)
-scheduler_thread.start()
+# scheduler_thread = Thread(target=schedule_tasks)
+# scheduler_thread.start()
+schedule_tasks()
 
 # Task of attentions part
 ############################
